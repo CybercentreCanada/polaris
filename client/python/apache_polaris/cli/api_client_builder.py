@@ -144,6 +144,8 @@ class ApiClientBuilder:
                 "scope": "PRINCIPAL_ROLE:ALL",
             },
         ).response.data
+        # print(f"{self.conf.catalog_url}")
+        # print(response)
         if "access_token" not in json.loads(response):
             # Distinct from validation errors: HTTP succeeded but body was not a usable token.
             raise CliError("Failed to get access token", exit_code=CLI_ERROR_EXIT_CODE)

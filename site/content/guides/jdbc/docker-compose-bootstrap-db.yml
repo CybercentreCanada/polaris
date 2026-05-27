@@ -20,6 +20,7 @@
 services:
   polaris-bootstrap:
     image: apache/polaris-admin-tool:latest
+    profiles: ["bootstrap"] 
     environment:
       - POLARIS_PERSISTENCE_TYPE=relational-jdbc
       - POLARIS_PERSISTENCE_RELATIONAL_JDBC_DATABASE_TYPE=${POLARIS_PERSISTENCE_RELATIONAL_JDBC_DATABASE_TYPE:-postgresql}
@@ -30,8 +31,3 @@ services:
       - "bootstrap"
       - "--realm=POLARIS"
       - "--credential=POLARIS,root,s3cr3t"
-
-  polaris:
-    depends_on:
-      polaris-bootstrap:
-        condition: service_completed_successfully

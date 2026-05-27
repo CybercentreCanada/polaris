@@ -23,7 +23,25 @@ dependencyResolutionManagement {
 
 dependencyResolutionManagement {
   repositories {
-    mavenCentral()
-    gradlePluginPortal()
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/gradle-plugins")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/maven-central2")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/splunk-jfrog/")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/burritotalk-jfrog/")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/maven-central_v2/")
+    // mavenCentral()
+    // gradlePluginPortal()
+  }
+}
+
+pluginManagement {
+  repositories {
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/gradle-plugins")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/maven-central2")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/splunk-jfrog/")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/burritotalk-jfrog/")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/maven-central_v2/")
+    // gradlePluginPortal()
+    // mavenCentral()
+    // google()
   }
 }

@@ -44,10 +44,10 @@ if [ ! -d "${dir}"/polaris-venv ] || [ "$repair" == true ]; then
   fi
 
   . "${dir}"/polaris-venv/bin/activate
-  pip install --upgrade pip
-  pip install --upgrade -r regtests/requirements.txt
+  pip install --index-url https://bagofholding-u.cse-cst.gc.ca/repository/pypi-cccs/simple --upgrade pip
+  pip install --index-url https://bagofholding-u.cse-cst.gc.ca/repository/pypi-cccs/simple --upgrade -r regtests/requirements.txt
 
-  (cd "${dir}/client/python" && uv sync --active --all-extras)
+  (cd "${dir}/client/python" && uv sync --active --all-extras --system-certs --extra-index-url https://bagofholding-u.cse-cst.gc.ca/repository/pypi-cccs/simple)
 
   deactivate
 

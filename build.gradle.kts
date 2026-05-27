@@ -20,7 +20,7 @@
 import java.net.URI
 import org.nosphere.apache.rat.RatTask
 
-buildscript { repositories { maven { url = java.net.URI("https://plugins.gradle.org/m2/") } } }
+buildscript { repositories { maven { url = java.net.URI("https://bagofholding.cse-cst.gc.ca/repository/gradle-plugins") } } }
 
 plugins {
   id("idea")
@@ -29,6 +29,30 @@ plugins {
   alias(libs.plugins.rat)
   alias(libs.plugins.jetbrains.changelog)
 }
+
+// pluginManagement {
+//   repositories {
+//     maven(url = "https://bagofholding.cse-cst.gc.ca/repository/gradle-plugins")
+//     maven(url = "https://bagofholding.cse-cst.gc.ca/repository/maven-central2")
+//     maven(url = "https://bagofholding.cse-cst.gc.ca/repository/splunk-jfrog/")
+//     maven(url = "https://bagofholding.cse-cst.gc.ca/repository/burritotalk-jfrog/")
+//     maven(url = "https://bagofholding.cse-cst.gc.ca/repository/maven-central_v2/")
+//     gradlePluginPortal()
+//     mavenCentral()
+//     google()
+//   }
+// }
+
+// dependencyResolutionManagement {
+//   // repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
+//   repositories {
+//     maven("https://bagofholding.cse-cst.gc.ca/repository/gradle-plugins")
+//     maven("https://bagofholding.cse-cst.gc.ca/repository/maven-central")
+//     maven("https://bagofholding.cse-cst.gc.ca/repository/maven-central2")
+//     maven("https://bagofholding.cse-cst.gc.ca/repository/splunk-jfrog/")
+//     maven("https://bagofholding.cse-cst.gc.ca/repository/burritotalk-jfrog/")
+//   }
+// }
 
 val projectName = rootProject.file("ide-name.txt").readText().trim()
 val ideName = "$projectName ${rootProject.version.toString().replace("^([0-9.]+).*", "\\1")}"

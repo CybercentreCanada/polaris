@@ -104,8 +104,13 @@ gradle.beforeProject {
 
 pluginManagement {
   repositories {
-    mavenCentral() // prefer Maven Central, in case Gradle's repo has issues
-    gradlePluginPortal()
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/gradle-plugins")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/maven-central2")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/splunk-jfrog/")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/burritotalk-jfrog/")
+    maven(url = "https://bagofholding.cse-cst.gc.ca/repository/maven-central_v2/")
+    // mavenCentral() // prefer Maven Central, in case Gradle's repo has issues
+    // gradlePluginPortal()
   }
 }
 
@@ -120,7 +125,12 @@ plugins {
 dependencyResolutionManagement {
   repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
   repositories {
-    mavenCentral()
+    maven("https://bagofholding.cse-cst.gc.ca/repository/gradle-plugins")
+    maven("https://bagofholding.cse-cst.gc.ca/repository/maven-central")
+    maven("https://bagofholding.cse-cst.gc.ca/repository/maven-central2")
+    maven("https://bagofholding.cse-cst.gc.ca/repository/splunk-jfrog/")
+    maven("https://bagofholding.cse-cst.gc.ca/repository/burritotalk-jfrog/")
+    // mavenCentral()
     val useApacheSnapshots =
       providers.gradleProperty("useApacheSnapshots").orNull?.toBoolean() == true
     if (useApacheSnapshots) {
@@ -136,7 +146,7 @@ dependencyResolutionManagement {
         configureIndirectForRenovate(this)
       }
     }
-    gradlePluginPortal()
+    // gradlePluginPortal()
   }
 }
 
