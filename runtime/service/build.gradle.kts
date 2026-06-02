@@ -35,6 +35,7 @@ dependencies {
 
   implementation(project(":polaris-runtime-defaults"))
   implementation(project(":polaris-runtime-common"))
+  implementation(project(":polaris-self-serve"))
 
   compileOnly(project(":polaris-immutables"))
   annotationProcessor(project(":polaris-immutables", configuration = "processor"))
