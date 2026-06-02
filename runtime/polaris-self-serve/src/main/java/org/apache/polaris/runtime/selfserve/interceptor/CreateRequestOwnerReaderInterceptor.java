@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jakarta.inject.Inject;
-import jakarta.servlet.http.HttpServletRequest;
 import jakarta.ws.rs.Priorities;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Context;
@@ -59,16 +58,14 @@ public class CreateRequestOwnerReaderInterceptor implements ReaderInterceptor {
   @Inject UserOwnershipResolver userOwnershipResolver;
 
   @Context UriInfo uriInfo;
-  @Context HttpServletRequest servletRequest;
 
   @Override
   public Object aroundReadFrom(ReaderInterceptorContext context)
       throws IOException, WebApplicationException {
     String path = resolvePath();
-    String method = resolveMethod();
 
-    if (!isTargetCreateRequest(method, path)) {
-      LOGGER.debug("Owner tracking skipped: non-target request method={} path={}", method, path);
+    if (!isTargetCreateRequest(path)) {
+      LOGGER.debug("Owner tracking skipped: non-target request path={}", path);
       return context.proceed();
     }
 
@@ -126,24 +123,10 @@ public class CreateRequestOwnerReaderInterceptor implements ReaderInterceptor {
     if (uriInfo != null && uriInfo.getPath() != null) {
       return uriInfo.getPath();
     }
-    if (servletRequest != null && servletRequest.getRequestURI() != null) {
-      String uri = servletRequest.getRequestURI();
-      return uri.startsWith("/") ? uri.substring(1) : uri;
-    }
     return "";
   }
 
-  private String resolveMethod() {
-    if (servletRequest != null && servletRequest.getMethod() != null) {
-      return servletRequest.getMethod();
-    }
-    return "";
-  }
-
-  static boolean isTargetCreateRequest(String method, String path) {
-    if (!"POST".equalsIgnoreCase(method)) {
-      return false;
-    }
+  static boolean isTargetCreateRequest(String path) {
     return CREATE_NAMESPACE_PATH.matcher(path).matches()
         || CREATE_TABLE_PATH.matcher(path).matches()
         || CREATE_VIEW_PATH.matcher(path).matches();

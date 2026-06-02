@@ -29,7 +29,7 @@ class CreateRequestOwnerReaderInterceptorTest {
   void targetPathsMatchCreateNamespace() {
     assertThat(
             CreateRequestOwnerReaderInterceptor.isTargetCreateRequest(
-                "POST", "api/catalog/v1/myCatalog/namespaces"))
+                "api/catalog/v1/myCatalog/namespaces"))
         .isTrue();
   }
 
@@ -37,7 +37,7 @@ class CreateRequestOwnerReaderInterceptorTest {
   void targetPathsMatchCreateTable() {
     assertThat(
             CreateRequestOwnerReaderInterceptor.isTargetCreateRequest(
-                "POST", "api/catalog/v1/myCatalog/namespaces/ns/tables"))
+                "api/catalog/v1/myCatalog/namespaces/ns/tables"))
         .isTrue();
   }
 
@@ -45,23 +45,15 @@ class CreateRequestOwnerReaderInterceptorTest {
   void targetPathsMatchCreateView() {
     assertThat(
             CreateRequestOwnerReaderInterceptor.isTargetCreateRequest(
-                "POST", "api/catalog/v1/myCatalog/namespaces/ns/views"))
+                "api/catalog/v1/myCatalog/namespaces/ns/views"))
         .isTrue();
-  }
-
-  @Test
-  void nonPostRequestsDoNotMatch() {
-    assertThat(
-            CreateRequestOwnerReaderInterceptor.isTargetCreateRequest(
-                "GET", "api/catalog/v1/myCatalog/namespaces/ns/tables"))
-        .isFalse();
   }
 
   @Test
   void nonCreatePathsDoNotMatch() {
     assertThat(
             CreateRequestOwnerReaderInterceptor.isTargetCreateRequest(
-                "POST", "api/catalog/v1/myCatalog/namespaces/ns/properties"))
+                "api/catalog/v1/myCatalog/namespaces/ns/properties"))
         .isFalse();
   }
 }

@@ -32,7 +32,6 @@ dependencies {
   implementation(libs.jakarta.enterprise.cdi.api)
   implementation(libs.jakarta.inject.api)
   implementation(libs.jakarta.ws.rs.api)
-  implementation(libs.jakarta.servlet.api)
 
   implementation(platform(libs.jackson.bom))
   implementation("com.fasterxml.jackson.core:jackson-databind")
