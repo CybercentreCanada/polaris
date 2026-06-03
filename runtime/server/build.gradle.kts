@@ -79,10 +79,15 @@ tasks.register("run") {
   dependsOn("quarkusDev")
 }
 
+val bootstrapCredentials =
+  (System.getProperty("polaris.bootstrap.credentials")
+      ?: project.findProperty("polaris.bootstrap.credentials")?.toString())
+    ?: "POLARIS,root,s3cr3t"
+
 tasks.named<QuarkusDev>("quarkusDev") {
   jvmArgs =
     listOf(
-      "-Dpolaris.bootstrap.credentials=POLARIS,root,s3cr3t",
+      "-Dpolaris.bootstrap.credentials=$bootstrapCredentials",
       "-Dquarkus.console.color=true",
       "-Dpolaris.features.\"ALLOW_INSECURE_STORAGE_TYPES\"=true",
       "-Dpolaris.features.\"SUPPORTED_CATALOG_STORAGE_TYPES\"=[\"FILE\",\"S3\",\"GCS\",\"AZURE\"]",

@@ -44,11 +44,7 @@ public class UserOwnershipResolver {
 
   public Optional<OwnerTrackingMetadata> resolve() {
     try {
-      SecurityIdentity identity =
-          currentIdentityAssociation
-              .getDeferredIdentity()
-              .subscribeAsCompletionStage()
-              .getNow(null);
+      SecurityIdentity identity = currentIdentity();
 
       if (identity == null || identity.getPrincipal() == null) {
         LOGGER.debug("Owner tracking skipped: no authenticated identity");
@@ -77,6 +73,25 @@ public class UserOwnershipResolver {
       LOGGER.debug("Owner tracking skipped: could not resolve principal metadata", e);
       return Optional.empty();
     }
+  }
+
+  public Optional<PolarisPrincipal> resolvePolarisPrincipal() {
+    SecurityIdentity identity = currentIdentity();
+    if (identity == null || identity.getPrincipal() == null) {
+      return Optional.empty();
+    }
+
+    if (identity.getPrincipal() instanceof PolarisPrincipal polarisPrincipal) {
+      return Optional.of(polarisPrincipal);
+    }
+    return Optional.empty();
+  }
+
+  private SecurityIdentity currentIdentity() {
+    return currentIdentityAssociation
+        .getDeferredIdentity()
+        .subscribeAsCompletionStage()
+        .getNow(null);
   }
 
   private static String firstNonBlank(String first, String second, String third, String fallback) {

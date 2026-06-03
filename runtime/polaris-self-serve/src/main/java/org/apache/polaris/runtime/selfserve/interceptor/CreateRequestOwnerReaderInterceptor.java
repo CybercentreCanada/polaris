@@ -34,7 +34,9 @@ import jakarta.ws.rs.ext.ReaderInterceptorContext;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,12 +52,13 @@ public class CreateRequestOwnerReaderInterceptor implements ReaderInterceptor {
   private static final Pattern CREATE_NAMESPACE_PATH =
       Pattern.compile("^/?api/catalog/v1/[^/]+/namespaces$");
   private static final Pattern CREATE_TABLE_PATH =
-      Pattern.compile("^/?api/catalog/v1/[^/]+/namespaces/[^/]+/tables$");
+      Pattern.compile("^/?api/catalog/v1/([^/]+)/namespaces/([^/]+)/tables$");
   private static final Pattern CREATE_VIEW_PATH =
-      Pattern.compile("^/?api/catalog/v1/[^/]+/namespaces/[^/]+/views$");
+      Pattern.compile("^/?api/catalog/v1/([^/]+)/namespaces/([^/]+)/views$");
 
   @Inject ObjectMapper objectMapper;
   @Inject UserOwnershipResolver userOwnershipResolver;
+  @Inject NamespacePropertiesLookup namespacePropertiesLookup;
 
   @Context UriInfo uriInfo;
 
@@ -73,6 +76,8 @@ public class CreateRequestOwnerReaderInterceptor implements ReaderInterceptor {
       LOGGER.debug("Owner tracking skipped: non-JSON media type path={}", path);
       return context.proceed();
     }
+
+    logExistingNamespaceProperties(path);
 
     Optional<OwnerTrackingMetadata> maybeMetadata = userOwnershipResolver.resolve();
     if (maybeMetadata.isEmpty()) {
@@ -131,6 +136,45 @@ public class CreateRequestOwnerReaderInterceptor implements ReaderInterceptor {
         || CREATE_TABLE_PATH.matcher(path).matches()
         || CREATE_VIEW_PATH.matcher(path).matches();
   }
+
+  private void logExistingNamespaceProperties(String path) {
+    lookupTarget(path)
+        .ifPresent(
+            target -> {
+              Optional<Map<String, String>> namespaceProps =
+                  namespacePropertiesLookup.lookup(target.catalogName(), target.namespacePath());
+              if (namespaceProps.isPresent()) {
+                LOGGER.debug(
+                    "Namespace properties lookup successful catalog={} namespace={} keyCount={} requestId={}",
+                    target.catalogName(),
+                    target.namespacePath(),
+                    namespaceProps.get().size(),
+                    requestId());
+              } else {
+                LOGGER.debug(
+                    "Namespace properties lookup returned empty catalog={} namespace={} requestId={}",
+                    target.catalogName(),
+                    target.namespacePath(),
+                    requestId());
+              }
+            });
+  }
+
+  private static Optional<LookupTarget> lookupTarget(String path) {
+    Matcher tableMatcher = CREATE_TABLE_PATH.matcher(path);
+    if (tableMatcher.matches()) {
+      return Optional.of(new LookupTarget(tableMatcher.group(1), tableMatcher.group(2)));
+    }
+
+    Matcher viewMatcher = CREATE_VIEW_PATH.matcher(path);
+    if (viewMatcher.matches()) {
+      return Optional.of(new LookupTarget(viewMatcher.group(1), viewMatcher.group(2)));
+    }
+
+    return Optional.empty();
+  }
+
+  private record LookupTarget(String catalogName, String namespacePath) {}
 
   private static boolean isJsonMediaType(MediaType mediaType) {
     if (mediaType == null) {

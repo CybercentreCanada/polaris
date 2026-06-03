@@ -1,0 +1,27 @@
+[project]
+name = "Polaris-Self-Serve-SQL-Integration-Test"
+version = "0.1.0"
+description = "Virtual environment used by Jupyter Notebooks to run the integration tests"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pyspark==3.5.6"
+]
+
+[tool.uv]
+dev-dependencies = [
+    "ipykernel>=6.29.0",
+]
+
+[tool.uv]
+managed = true
+allow-insecure-host = ["bagofholding-pb.cse-cst.gc.ca"]
+
+[[tool.uv.index]]
+name = "cccs"
+url = "https://bagofholding-pb.cse-cst.gc.ca/repository/pypi-cccs/simple"
+default = true
+
+[[tool.uv.index]]
+name = "nvidia"
+url = "https://bagofholding-pb.cse-cst.gc.ca/repository/pypi-nvidia-raw"

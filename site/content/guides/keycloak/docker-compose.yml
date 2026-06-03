@@ -91,6 +91,9 @@ services:
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: admin
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_ACCESS_LOG_ENABLED: "true"
+      KC_HTTP_ACCESS_LOG_PATTERN: "combined"
+      KC_LOG_LEVEL: "debug"
     volumes:
       - ../assets/keycloak/iceberg-realm.json:/opt/keycloak/data/import/iceberg-realm.json
     command: [
