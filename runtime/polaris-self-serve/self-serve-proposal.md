@@ -68,42 +68,44 @@ Properties are stored as standard key-value pairs within the Iceberg metadata. M
 
 ```json
 
-  "polaris_data_readers": {
-    "users": [
-      {
-        "display_name": "Alice Smith",
-        "email": "alice@example.com"
-      }
-    ],
-    "groups": [
-      {
-        "object_id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
-        "group_name": "data-readers-team"
-      }
-    ]
-  },
-  "polaris_data_writers": {
-    "users": [],
-    "groups": []
-  },
-  "polaris_data_administrators": {
-    "users": [],
-    "groups": []
-  },
-  "polaris_owners": {
-    "users": [
-      {
-        "display_name": "Owner User",
-        "email": "owner@example.com"
-      }
-    ],
-    "groups": [
-      {
-        "object_id": "12345678-1234-4234-9234-1234567890ab",
-        "group_name": "catalog-owners"
-      }
-    ]
-  }
+  "polaris_data_readers": [
+    {
+      "version": "1",
+      "object_id": "",
+      "display_name": "Alice Smith",
+      "value": "alice@example.com",
+      "type": "user",
+      "oid_provider": "keycloak"
+    },
+    {
+      "version": "1",
+      "object_id": "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+      "display_name": "data-readers-team",
+      "value": "data-readers-team",
+      "type": "group",
+      "oid_provider": "keycloak"
+    }
+  ],
+  "polaris_data_writers": [],
+  "polaris_data_administrators": [],
+  "polaris_owners": [
+    {
+      "version": "1",
+      "object_id": "",
+      "display_name": "Alice Smith",
+      "value": "owner@example.com",
+      "type": "user",
+      "oid_provider": "keycloak"
+    },
+    {
+      "version": "1",
+      "object_id": "12345678-1234-4234-9234-1234567890ab",
+      "display_name": "catalog-owners",
+      "value": "catalog-owners",
+      "type": "group",
+      "oid_provider": "entra"
+    }
+  ]
 
 ```
 
