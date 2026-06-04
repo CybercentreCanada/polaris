@@ -24,8 +24,8 @@ plugins {
 
 val keycloakBootstrapCredentials =
   (System.getProperty("polaris.bootstrap.credentials")
-      ?: project.findProperty("polaris.bootstrap.credentials")?.toString()
-      ?: System.getenv("POLARIS_BOOTSTRAP_CREDENTIALS"))
+    ?: project.findProperty("polaris.bootstrap.credentials")?.toString()
+    ?: System.getenv("POLARIS_BOOTSTRAP_CREDENTIALS"))
     ?: "realm-internal,root,s3cr3t;realm-external,root,s3cr3t;realm-mixed,root,s3cr3t"
 
 val keycloakJvmArgs =

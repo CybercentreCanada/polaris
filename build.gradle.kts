@@ -20,7 +20,11 @@
 import java.net.URI
 import org.nosphere.apache.rat.RatTask
 
-buildscript { repositories { maven { url = java.net.URI("https://bagofholding.cse-cst.gc.ca/repository/gradle-plugins") } } }
+buildscript {
+  repositories {
+    maven { url = java.net.URI("https://bagofholding.cse-cst.gc.ca/repository/gradle-plugins") }
+  }
+}
 
 plugins {
   id("idea")

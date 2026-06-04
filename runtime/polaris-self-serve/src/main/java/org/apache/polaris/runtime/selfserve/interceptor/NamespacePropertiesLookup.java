@@ -51,7 +51,7 @@ public class NamespacePropertiesLookup {
   public Optional<Map<String, String>> lookup(String catalogName, String encodedNamespacePath) {
     Optional<PolarisPrincipal> maybePrincipal = userOwnershipResolver.resolvePolarisPrincipal();
     if (maybePrincipal.isEmpty()) {
-      LOGGER.debug("Namespace lookup skipped: no PolarisPrincipal available");
+      LOGGER.info("Namespace lookup skipped: no PolarisPrincipal available");
       return Optional.empty();
     }
 
@@ -67,7 +67,7 @@ public class NamespacePropertiesLookup {
     ResolverStatus status = resolver.resolveAll();
 
     if (status.getStatus() != ResolverStatus.StatusEnum.SUCCESS) {
-      LOGGER.debug(
+      LOGGER.info(
           "Namespace lookup unresolved: catalog={} namespace={} status={}",
           catalogName,
           normalizedPath,
@@ -77,7 +77,7 @@ public class NamespacePropertiesLookup {
 
     ResolvedPolarisEntity leaf = resolver.getResolvedPath().getLast();
     if (leaf.getEntity().getType() != PolarisEntityType.NAMESPACE) {
-      LOGGER.debug(
+      LOGGER.info(
           "Namespace lookup returned non-namespace leaf type={} for catalog={} namespace={}",
           leaf.getEntity().getType(),
           catalogName,

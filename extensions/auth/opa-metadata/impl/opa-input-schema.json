@@ -1,0 +1,137 @@
+{
+  "type" : "object",
+  "id" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:OpaAuthorizationInput",
+  "properties" : {
+    "actor" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:Actor",
+      "required" : true,
+      "properties" : {
+        "principal" : {
+          "type" : "string",
+          "required" : true
+        },
+        "roles" : {
+          "type" : "array",
+          "items" : {
+            "type" : "string"
+          }
+        }
+      }
+    },
+    "action" : {
+      "type" : "string",
+      "required" : true
+    },
+    "resource" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:Resource",
+      "required" : true,
+      "properties" : {
+        "targets" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "id" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:ResourceEntity",
+            "properties" : {
+              "type" : {
+                "type" : "string",
+                "required" : true
+              },
+              "name" : {
+                "type" : "string",
+                "required" : true
+              },
+              "access_control_properties" : {
+                "type" : "object",
+                "id" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:AccessControlProperties",
+                "required" : true,
+                "properties" : {
+                  "owners" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "id" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:identity:AccessControlIdentity",
+                      "properties" : {
+                        "version" : {
+                          "type" : "string",
+                          "required" : true
+                        },
+                        "object_id" : {
+                          "type" : "string",
+                          "required" : true
+                        },
+                        "display_name" : {
+                          "type" : "string",
+                          "required" : true
+                        },
+                        "value" : {
+                          "type" : "string",
+                          "required" : true
+                        },
+                        "type" : {
+                          "type" : "string",
+                          "required" : true
+                        },
+                        "oid_provider" : {
+                          "type" : "string",
+                          "required" : true
+                        }
+                      }
+                    }
+                  },
+                  "data_administrators" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "$ref" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:identity:AccessControlIdentity"
+                    }
+                  },
+                  "data_writers" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "$ref" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:identity:AccessControlIdentity"
+                    }
+                  },
+                  "data_readers" : {
+                    "type" : "array",
+                    "items" : {
+                      "type" : "object",
+                      "$ref" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:identity:AccessControlIdentity"
+                    }
+                  }
+                }
+              },
+              "parents" : {
+                "type" : "array",
+                "items" : {
+                  "type" : "object",
+                  "$ref" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:ResourceEntity"
+                }
+              }
+            }
+          }
+        },
+        "secondaries" : {
+          "type" : "array",
+          "items" : {
+            "type" : "object",
+            "$ref" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:ResourceEntity"
+          }
+        }
+      }
+    },
+    "context" : {
+      "type" : "object",
+      "id" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:Context",
+      "required" : true,
+      "properties" : {
+        "request_id" : {
+          "type" : "string",
+          "required" : true
+        }
+      }
+    }
+  }
+}

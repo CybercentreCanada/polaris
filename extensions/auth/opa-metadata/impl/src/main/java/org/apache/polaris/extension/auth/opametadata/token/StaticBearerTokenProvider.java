@@ -16,16 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.polaris.extension.auth.opametadata.token;
 
-plugins { `kotlin-dsl` }
+import static com.google.common.base.Preconditions.checkArgument;
 
-dependencies {
-  implementation(gradleKotlinDsl())
-  implementation(baselibs.errorprone)
-  implementation(baselibs.idea.ext)
-  implementation(baselibs.jandex)
-  implementation(baselibs.license.report)
-  implementation(baselibs.nexus.publish)
-  implementation(baselibs.shadow)
-  implementation(baselibs.spotless)
+import com.google.common.base.Strings;
+import org.jspecify.annotations.NonNull;
+
+/** A simple token provider that returns a static string value. */
+public record StaticBearerTokenProvider(String token) implements BearerTokenProvider {
+
+  public StaticBearerTokenProvider {
+    checkArgument(!Strings.isNullOrEmpty(token), "Token cannot be null or empty");
+  }
+
+  @Override
+  public @NonNull String getToken() {
+    return token;
+  }
 }

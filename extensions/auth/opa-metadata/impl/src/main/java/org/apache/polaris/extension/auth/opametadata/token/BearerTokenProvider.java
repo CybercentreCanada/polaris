@@ -16,16 +16,36 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.polaris.extension.auth.opametadata.token;
 
-plugins { `kotlin-dsl` }
+import org.jspecify.annotations.Nullable;
 
-dependencies {
-  implementation(gradleKotlinDsl())
-  implementation(baselibs.errorprone)
-  implementation(baselibs.idea.ext)
-  implementation(baselibs.jandex)
-  implementation(baselibs.license.report)
-  implementation(baselibs.nexus.publish)
-  implementation(baselibs.shadow)
-  implementation(baselibs.spotless)
+/**
+ * Interface for providing bearer tokens for authentication.
+ *
+ * <p>Implementations can provide tokens from various sources such as:
+ *
+ * <ul>
+ *   <li>Static string values
+ *   <li>Files (with automatic reloading)
+ *   <li>External token services
+ * </ul>
+ */
+public interface BearerTokenProvider extends AutoCloseable {
+
+  /**
+   * Get the current bearer token.
+   *
+   * @return the bearer token, or null if no token is available
+   */
+  @Nullable String getToken();
+
+  /**
+   * Clean up any resources used by this token provider. Should be called when the provider is no
+   * longer needed.
+   */
+  @Override
+  default void close() {
+    // Default implementation does nothing
+  }
 }

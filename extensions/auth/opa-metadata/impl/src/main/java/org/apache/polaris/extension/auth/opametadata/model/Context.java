@@ -16,16 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.polaris.extension.auth.opametadata.model;
 
-plugins { `kotlin-dsl` }
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+import org.apache.polaris.immutables.PolarisImmutable;
 
-dependencies {
-  implementation(gradleKotlinDsl())
-  implementation(baselibs.errorprone)
-  implementation(baselibs.idea.ext)
-  implementation(baselibs.jandex)
-  implementation(baselibs.license.report)
-  implementation(baselibs.nexus.publish)
-  implementation(baselibs.shadow)
-  implementation(baselibs.spotless)
+/**
+ * Additional context information for the authorization request.
+ *
+ * <p>Used for tracking and correlation purposes.
+ */
+@PolarisImmutable
+@JsonSerialize(as = ImmutableContext.class)
+@JsonDeserialize(as = ImmutableContext.class)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+public interface Context {
+  /** A unique identifier for correlating this request with OPA server logs. */
+  String requestId();
 }

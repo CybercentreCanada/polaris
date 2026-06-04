@@ -1,3 +1,22 @@
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one
+  or more contributor license agreements.  See the NOTICE file
+  distributed with this work for additional information
+  regarding copyright ownership.  The ASF licenses this file
+  to you under the Apache License, Version 2.0 (the
+  "License"); you may not use this file except in compliance
+  with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing,
+  software distributed under the License is distributed on an
+  "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+  KIND, either express or implied.  See the License for the
+  specific language governing permissions and limitations
+  under the License.
+-->
+
 # Integration Test Setup
 
 The self-serve integration flow uses the notebook in `jypyter_notebooks/`, a local Polaris server, and an Open Policy Agent (OPA) sidecar that authorizes every Polaris request.
@@ -82,7 +101,7 @@ export POLARIS_BOOTSTRAP_CREDENTIALS='realm-internal,root,s3cr3t;realm-external,
   -Dpolaris.oidc.principal-mapper.name-claim-path="principal_name" \
   -Dpolaris.oidc.principal-roles-mapper.mappings[0].regex="(.+)" \
   -Dpolaris.oidc.principal-roles-mapper.mappings[0].replacement="PRINCIPAL_ROLE:\$1" \
-  -Dpolaris.authorization.type=opa \
+  -Dpolaris.authorization.type=opa-metadata \
   -Dpolaris.authorization.opa.policy-uri=http://127.0.0.1:8184/v1/data/polaris/authz
 
 ```
@@ -162,7 +181,7 @@ List catalogs in the internal realm:
   --realm realm-internal
 ```
 
-Create a file-backed catalog in the external realm:
+Create a file-backed catalog in the mixed realm:
 
 ```bash
 ./polaris catalogs create \
@@ -172,9 +191,21 @@ Create a file-backed catalog in the external realm:
   --access-token "$KEYCLOAK_TOKEN" \
   --host 127.0.0.1 \
   --port 8181 \
-  --realm realm-external
+  --realm realm-mixed
 ```
 
+
+```bash
+./polaris catalogs create \
+  --storage-type file \
+  --default-base-location file:///tmp/test_catalog_mixed \
+  test_catalog_mixed \
+  --host 127.0.0.1 \
+  --port 8181 \
+  --client-id root \
+  --client-secret s3cr3t \
+  --realm realm-mixed
+```
 Create a namespace in the external realm:
 
 ```bash
@@ -185,7 +216,19 @@ Create a namespace in the external realm:
   --access-token "$KEYCLOAK_TOKEN" \
   --host 127.0.0.1 \
   --port 8181 \
-  --realm realm-external
+  --realm realm-mixed
+```
+
+```bash
+./polaris namespaces create \
+  --catalog test_catalog_mixed \
+  --location file:///tmp/test_catalog_mixed/test_namespace2 \
+  test_namespace2 \
+  --host 127.0.0.1 \
+  --port 8181 \
+  --client-id root \
+  --client-secret s3cr3t \
+  --realm realm-mixed
 ```
 
 ## 5. Inspect OPA logs in Docker

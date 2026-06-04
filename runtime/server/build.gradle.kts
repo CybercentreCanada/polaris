@@ -39,6 +39,7 @@ dependencies {
   runtimeOnly(project(":polaris-extensions-federation-hadoop"))
   runtimeOnly(project(":polaris-extensions-auth-opa"))
   runtimeOnly(project(":polaris-extensions-auth-ranger"))
+  runtimeOnly(project(":polaris-extensions-auth-opa-metadata"))
 
   if ((project.findProperty("NonRESTCatalogs") as String?)?.contains("HIVE") == true) {
     runtimeOnly(project(":polaris-extensions-federation-hive"))
@@ -81,8 +82,7 @@ tasks.register("run") {
 
 val bootstrapCredentials =
   (System.getProperty("polaris.bootstrap.credentials")
-      ?: project.findProperty("polaris.bootstrap.credentials")?.toString())
-    ?: "POLARIS,root,s3cr3t"
+    ?: project.findProperty("polaris.bootstrap.credentials")?.toString()) ?: "POLARIS,root,s3cr3t"
 
 tasks.named<QuarkusDev>("quarkusDev") {
   jvmArgs =
