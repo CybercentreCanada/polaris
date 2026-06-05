@@ -105,7 +105,7 @@ public class CreateRequestOwnerReaderInterceptor implements ReaderInterceptor {
       byte[] rewritten = objectMapper.writeValueAsBytes(rootObjectNode);
       context.setInputStream(new ByteArrayInputStream(rewritten));
 
-      LOGGER.debug(
+      LOGGER.info(
           "Owner tracking applied path={} requestId={} owner={} ownerId={} bytes={}",
           path,
           requestId(),

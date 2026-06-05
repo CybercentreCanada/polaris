@@ -35,6 +35,7 @@ import org.apache.hc.client5.http.impl.classic.HttpClients;
 import org.apache.polaris.core.auth.PolarisAuthorizer;
 import org.apache.polaris.core.auth.PolarisAuthorizerFactory;
 import org.apache.polaris.core.config.RealmConfig;
+import org.apache.polaris.core.persistence.resolver.ResolverFactory;
 import org.apache.polaris.extension.auth.opametadata.token.BearerTokenProvider;
 import org.apache.polaris.extension.auth.opametadata.token.FileBearerTokenProvider;
 import org.apache.polaris.extension.auth.opametadata.token.StaticBearerTokenProvider;
@@ -55,6 +56,8 @@ class OpaPolarisAuthorizerFactory implements PolarisAuthorizerFactory {
   private final ObjectMapper objectMapper;
   private final AsyncExec asyncExec;
   private final @Nullable Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder;
+  private final @Nullable Instance<TableMetadataPropertiesLookup> tableMetadataPropertiesLookup;
+  private final @Nullable ResolverFactory resolverFactory;
   private CloseableHttpClient httpClient;
   private BearerTokenProvider bearerTokenProvider;
 
@@ -63,16 +66,20 @@ class OpaPolarisAuthorizerFactory implements PolarisAuthorizerFactory {
       OpaAuthorizationConfig opaConfig,
       Clock clock,
       AsyncExec asyncExec,
-      Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder) {
+      Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder,
+      Instance<TableMetadataPropertiesLookup> tableMetadataPropertiesLookup,
+      ResolverFactory resolverFactory) {
     this.opaConfig = opaConfig;
     this.clock = clock;
     this.asyncExec = asyncExec;
     this.pendingTablePropertiesHolder = pendingTablePropertiesHolder;
+    this.tableMetadataPropertiesLookup = tableMetadataPropertiesLookup;
+    this.resolverFactory = resolverFactory;
     this.objectMapper = JsonMapper.builder().build();
   }
 
   OpaPolarisAuthorizerFactory(OpaAuthorizationConfig opaConfig, Clock clock, AsyncExec asyncExec) {
-    this(opaConfig, clock, asyncExec, null);
+    this(opaConfig, clock, asyncExec, null, null, null);
   }
 
   /**
@@ -108,7 +115,13 @@ class OpaPolarisAuthorizerFactory implements PolarisAuthorizerFactory {
                         "OPA policy URI must be configured via polaris.authorization.opametadata.policy-uri"));
 
     return new OpaPolarisAuthorizer(
-        policyUri, httpClient, objectMapper, bearerTokenProvider, pendingTablePropertiesHolder);
+        policyUri,
+        httpClient,
+        objectMapper,
+        bearerTokenProvider,
+        pendingTablePropertiesHolder,
+        tableMetadataPropertiesLookup,
+        resolverFactory);
   }
 
   @PreDestroy

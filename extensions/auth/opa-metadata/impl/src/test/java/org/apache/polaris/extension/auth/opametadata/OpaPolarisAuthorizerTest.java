@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,6 +30,7 @@ import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
+import jakarta.enterprise.inject.Instance;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
@@ -63,6 +65,9 @@ import org.apache.polaris.core.entity.PolarisEntityType;
 import org.apache.polaris.core.persistence.PolarisResolvedPathWrapper;
 import org.apache.polaris.core.persistence.ResolvedPolarisEntity;
 import org.apache.polaris.core.persistence.resolver.PolarisResolutionManifest;
+import org.apache.polaris.core.persistence.resolver.Resolver;
+import org.apache.polaris.core.persistence.resolver.ResolverFactory;
+import org.apache.polaris.core.persistence.resolver.ResolverStatus;
 import org.apache.polaris.extension.auth.opametadata.token.BearerTokenProvider;
 import org.apache.polaris.extension.auth.opametadata.token.StaticBearerTokenProvider;
 import org.junit.jupiter.api.Test;
@@ -932,6 +937,181 @@ public class OpaPolarisAuthorizerTest {
             """);
     assertThat(root.path("input").path("resource").path("secondaries").get(0))
         .isEqualTo(expectedDestination);
+  }
+
+  @Test
+  void setTablePropertiesUsesResolverBackedPropertiesWhenAvailable() throws Exception {
+    final String[] capturedRequestBody = new String[1];
+    HttpEntity mockEntity = HttpEntities.create("{\"result\":{\"allow\":true}}");
+    @SuppressWarnings("resource")
+    ClassicHttpResponse mockResponse = new BasicClassicHttpResponse(200);
+    mockResponse.setEntity(mockEntity);
+
+    ResolverFactory resolverFactory = mock(ResolverFactory.class);
+    Resolver resolver = mock(Resolver.class);
+    ResolverStatus successStatus = mock(ResolverStatus.class);
+    PolarisPrincipal principal = mockPrincipal();
+
+    when(successStatus.getStatus()).thenReturn(ResolverStatus.StatusEnum.SUCCESS);
+    when(resolverFactory.createResolver(principal, "catalog1")).thenReturn(resolver);
+    when(resolver.resolveAll()).thenReturn(successStatus);
+
+    PolarisEntity resolvedTableEntity =
+        new PolarisEntity.Builder()
+            .setName("table1")
+            .setType(PolarisEntityType.TABLE_LIKE)
+            .setId(300L)
+            .setCatalogId(100L)
+            .setParentId(200L)
+            .setCreateTimestamp(System.currentTimeMillis())
+            .setProperties(Map.of("resolved_key", "resolved_value"))
+            .build();
+    when(resolver.getResolvedPath()).thenReturn(List.of(createResolvedEntity(resolvedTableEntity)));
+
+    @SuppressWarnings("unchecked")
+    Instance<PendingTablePropertiesHolder> holderInstance = mock(Instance.class);
+    PendingTablePropertiesHolder holder = new PendingTablePropertiesHolder();
+    holder.setInboundSetProperties(Map.of("inbound_key", "inbound_value"));
+    when(holderInstance.isResolvable()).thenReturn(true);
+    when(holderInstance.get()).thenReturn(holder);
+
+    OpaPolarisAuthorizer authorizer =
+        new OpaPolarisAuthorizer(
+            URI.create("http://opa.example.com:8181/v1/data/polaris/allow"),
+            mock(CloseableHttpClient.class),
+            JsonMapper.builder().build(),
+            null,
+            holderInstance,
+            resolverFactory) {
+          @Override
+          <T> T httpClientExecute(
+              ClassicHttpRequest request, HttpClientResponseHandler<? extends T> responseHandler)
+              throws HttpException, IOException {
+            capturedRequestBody[0] =
+                new String(request.getEntity().getContent().readAllBytes(), StandardCharsets.UTF_8);
+            return responseHandler.handleResponse(mockResponse);
+          }
+        };
+
+    authorizer.authorizeOrThrow(
+        principal,
+        Set.of(),
+        PolarisAuthorizableOperation.SET_TABLE_PROPERTIES,
+        tablePathWithRawProperties("raw_key", "raw_value"),
+        null);
+
+    ObjectMapper mapper = JsonMapper.builder().build();
+    JsonNode target =
+        mapper
+            .readTree(capturedRequestBody[0])
+            .path("input")
+            .path("resource")
+            .path("targets")
+            .get(0);
+
+    assertThat(target.path("table_properties").path("resolved_key").asText())
+        .isEqualTo("resolved_value");
+    assertThat(target.path("existing_properties").path("resolved_key").asText())
+        .isEqualTo("resolved_value");
+    assertThat(target.path("inbound_properties").path("inbound_key").asText())
+        .isEqualTo("inbound_value");
+  }
+
+  @Test
+  void setTablePropertiesFallsBackToRawLeafPropertiesWhenResolverFails() throws Exception {
+    final String[] capturedRequestBody = new String[1];
+    HttpEntity mockEntity = HttpEntities.create("{\"result\":{\"allow\":true}}");
+    @SuppressWarnings("resource")
+    ClassicHttpResponse mockResponse = new BasicClassicHttpResponse(200);
+    mockResponse.setEntity(mockEntity);
+
+    ResolverFactory resolverFactory = mock(ResolverFactory.class);
+    Resolver resolver = mock(Resolver.class);
+    PolarisPrincipal principal = mockPrincipal();
+
+    when(resolverFactory.createResolver(principal, "catalog1")).thenReturn(resolver);
+    when(resolver.resolveAll())
+        .thenReturn(new ResolverStatus(ResolverStatus.StatusEnum.PATH_COULD_NOT_BE_FULLY_RESOLVED));
+
+    OpaPolarisAuthorizer authorizer =
+        new OpaPolarisAuthorizer(
+            URI.create("http://opa.example.com:8181/v1/data/polaris/allow"),
+            mock(CloseableHttpClient.class),
+            JsonMapper.builder().build(),
+            null,
+            null,
+            resolverFactory) {
+          @Override
+          <T> T httpClientExecute(
+              ClassicHttpRequest request, HttpClientResponseHandler<? extends T> responseHandler)
+              throws HttpException, IOException {
+            capturedRequestBody[0] =
+                new String(request.getEntity().getContent().readAllBytes(), StandardCharsets.UTF_8);
+            return responseHandler.handleResponse(mockResponse);
+          }
+        };
+
+    authorizer.authorizeOrThrow(
+        principal,
+        Set.of(),
+        PolarisAuthorizableOperation.SET_TABLE_PROPERTIES,
+        tablePathWithRawProperties("raw_key", "raw_value"),
+        null);
+
+    ObjectMapper mapper = JsonMapper.builder().build();
+    JsonNode target =
+        mapper
+            .readTree(capturedRequestBody[0])
+            .path("input")
+            .path("resource")
+            .path("targets")
+            .get(0);
+
+    assertThat(target.path("table_properties").path("raw_key").asText()).isEqualTo("raw_value");
+    assertThat(target.path("existing_properties").path("raw_key").asText()).isEqualTo("raw_value");
+  }
+
+  private PolarisPrincipal mockPrincipal() {
+    return PolarisPrincipal.of("alice", Map.of(), Set.of("role-1"));
+  }
+
+  private PolarisResolvedPathWrapper tablePathWithRawProperties(String key, String value) {
+    PolarisEntity catalogEntity =
+        new PolarisEntity.Builder()
+            .setName("catalog1")
+            .setType(PolarisEntityType.CATALOG)
+            .setId(100L)
+            .setCatalogId(100L)
+            .setParentId(0L)
+            .setCreateTimestamp(System.currentTimeMillis())
+            .build();
+
+    PolarisEntity namespaceEntity =
+        new PolarisEntity.Builder()
+            .setName("ns1")
+            .setType(PolarisEntityType.NAMESPACE)
+            .setId(200L)
+            .setCatalogId(100L)
+            .setParentId(100L)
+            .setCreateTimestamp(System.currentTimeMillis())
+            .build();
+
+    PolarisEntity tableEntity =
+        new PolarisEntity.Builder()
+            .setName("table1")
+            .setType(PolarisEntityType.TABLE_LIKE)
+            .setId(300L)
+            .setCatalogId(100L)
+            .setParentId(200L)
+            .setCreateTimestamp(System.currentTimeMillis())
+            .setProperties(Map.of(key, value))
+            .build();
+
+    return new PolarisResolvedPathWrapper(
+        List.of(
+            createResolvedEntity(catalogEntity),
+            createResolvedEntity(namespaceEntity),
+            createResolvedEntity(tableEntity)));
   }
 
   private AuthorizationRequest requestWithCatalogTarget() {

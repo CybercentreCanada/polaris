@@ -16,15 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.polaris.extension.auth.opametadata;
 
-package org.apache.polaris.runtime.selfserve.interceptor;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import org.apache.polaris.core.auth.PolarisPrincipal;
+import org.jspecify.annotations.NonNull;
 
-public final class OwnerTrackingKeys {
+/** Resolves current table properties for OPA payload generation. */
+public interface TableMetadataPropertiesLookup {
 
-  public static final String OWNER = "polaris_owner";
-  public static final String OWNER_ID = "polaris_owner_id";
-  public static final String OWNER_CREATED_AT = "polaris_owner_created_at";
-  public static final String REQUEST_ID_MDC_KEY = "requestId";
-
-  private OwnerTrackingKeys() {}
+  @NonNull Optional<Map<String, String>> lookupTableProperties(
+      @NonNull PolarisPrincipal principal,
+      @NonNull String catalogName,
+      @NonNull List<String> tablePathSegments);
 }

@@ -27,6 +27,7 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
@@ -54,6 +55,11 @@ import org.apache.polaris.core.entity.PolarisEntity;
 import org.apache.polaris.core.entity.PolarisEntityType;
 import org.apache.polaris.core.persistence.PolarisResolvedPathWrapper;
 import org.apache.polaris.core.persistence.ResolvedPolarisEntity;
+import org.apache.polaris.core.persistence.resolver.ResolvedPathKey;
+import org.apache.polaris.core.persistence.resolver.Resolver;
+import org.apache.polaris.core.persistence.resolver.ResolverFactory;
+import org.apache.polaris.core.persistence.resolver.ResolverPath;
+import org.apache.polaris.core.persistence.resolver.ResolverStatus;
 import org.apache.polaris.extension.auth.opametadata.model.ImmutableActor;
 import org.apache.polaris.extension.auth.opametadata.model.ImmutableContext;
 import org.apache.polaris.extension.auth.opametadata.model.ImmutableOpaAuthorizationInput;
@@ -85,6 +91,8 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
   private final CloseableHttpClient httpClient;
   private final ObjectMapper objectMapper;
   private final Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder;
+  private final Instance<TableMetadataPropertiesLookup> tableMetadataPropertiesLookup;
+  private final ResolverFactory resolverFactory;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OpaPolarisAuthorizer.class);
   private static final String REQUEST_ID_MDC_KEY = "requestId";
@@ -105,13 +113,50 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
       @NonNull CloseableHttpClient httpClient,
       @NonNull ObjectMapper objectMapper,
       @Nullable BearerTokenProvider tokenProvider,
-      @Nullable Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder) {
+      @Nullable Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder,
+      @Nullable Instance<TableMetadataPropertiesLookup> tableMetadataPropertiesLookup,
+      @Nullable ResolverFactory resolverFactory) {
 
     this.policyUri = policyUri;
     this.tokenProvider = tokenProvider;
     this.httpClient = httpClient;
     this.objectMapper = objectMapper;
     this.pendingTablePropertiesHolder = pendingTablePropertiesHolder;
+    this.tableMetadataPropertiesLookup = tableMetadataPropertiesLookup;
+    this.resolverFactory = resolverFactory;
+  }
+
+  public OpaPolarisAuthorizer(
+      @NonNull URI policyUri,
+      @NonNull CloseableHttpClient httpClient,
+      @NonNull ObjectMapper objectMapper,
+      @Nullable BearerTokenProvider tokenProvider,
+      @Nullable Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder) {
+    this(
+        policyUri,
+        httpClient,
+        objectMapper,
+        tokenProvider,
+        pendingTablePropertiesHolder,
+        null,
+        null);
+  }
+
+  public OpaPolarisAuthorizer(
+      @NonNull URI policyUri,
+      @NonNull CloseableHttpClient httpClient,
+      @NonNull ObjectMapper objectMapper,
+      @Nullable BearerTokenProvider tokenProvider,
+      @Nullable Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder,
+      @Nullable ResolverFactory resolverFactory) {
+    this(
+        policyUri,
+        httpClient,
+        objectMapper,
+        tokenProvider,
+        pendingTablePropertiesHolder,
+        null,
+        resolverFactory);
   }
 
   public OpaPolarisAuthorizer(
@@ -119,7 +164,7 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
       @NonNull CloseableHttpClient httpClient,
       @NonNull ObjectMapper objectMapper,
       @Nullable BearerTokenProvider tokenProvider) {
-    this(policyUri, httpClient, objectMapper, tokenProvider, null);
+    this(policyUri, httpClient, objectMapper, tokenProvider, null, null, null);
   }
 
   /**
@@ -223,8 +268,10 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
                 polarisPrincipal,
                 authzOp,
                 toResourceEntitiesFromResolvedPaths(
-                    targets, authzOp == PolarisAuthorizableOperation.SET_TABLE_PROPERTIES),
-                toResourceEntitiesFromResolvedPaths(secondaries, false)));
+                    polarisPrincipal,
+                    targets,
+                    authzOp == PolarisAuthorizableOperation.SET_TABLE_PROPERTIES),
+                toResourceEntitiesFromResolvedPaths(polarisPrincipal, secondaries, false)));
     if (!allowed) {
       throw new ForbiddenException("OPA denied authorization");
     }
@@ -367,7 +414,9 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
   }
 
   private ResourceEntity buildResourceEntity(
-      PolarisResolvedPathWrapper path, boolean includeInboundProperties) {
+      PolarisPrincipal principal,
+      PolarisResolvedPathWrapper path,
+      boolean includeInboundProperties) {
     // Currently, authorizeOrThrow still evaluate through resolved paths, including
     // root-scoped operations that may surface a resolved ROOT leaf. Preserve that legacy
     // behavior for compatibility until those callers migrate to the intent-based flow.
@@ -391,19 +440,18 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
       }
     }
 
+    Map<String, String> tableProperties = extractTableProperties(principal, path);
+
     ImmutableResourceEntity.Builder builder =
         ImmutableResourceEntity.builder()
             .type(leaf.entityType().name())
             .name(leaf.name())
-            .tableProperties(extractTableProperties(path))
+            .tableProperties(tableProperties)
             .namespaceProperties(extractNamespaceProperties(path))
             .parents(parents);
 
     if (includeInboundProperties) {
-      builder.existingProperties(
-          path.getRawLeafEntity() == null
-              ? Map.of()
-              : path.getRawLeafEntity().getPropertiesAsMap());
+      builder.existingProperties(tableProperties);
       builder.inboundProperties(getInboundSetProperties());
     }
 
@@ -412,7 +460,9 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
 
   @NonNull
   private List<ResourceEntity> toResourceEntitiesFromResolvedPaths(
-      @Nullable List<PolarisResolvedPathWrapper> paths, boolean includeInboundProperties) {
+      PolarisPrincipal principal,
+      @Nullable List<PolarisResolvedPathWrapper> paths,
+      boolean includeInboundProperties) {
     if (paths == null || paths.isEmpty()) {
       return List.of();
     }
@@ -420,7 +470,7 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
     List<ResourceEntity> entities = new ArrayList<>();
     for (PolarisResolvedPathWrapper path : paths) {
       if (path != null && path.getResolvedLeafEntity() != null) {
-        entities.add(buildResourceEntity(path, includeInboundProperties));
+        entities.add(buildResourceEntity(principal, path, includeInboundProperties));
       }
     }
     return entities;
@@ -433,12 +483,121 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
     return pendingTablePropertiesHolder.get().getInboundSetProperties();
   }
 
-  private Map<String, String> extractTableProperties(PolarisResolvedPathWrapper path) {
+  private Map<String, String> extractTableProperties(
+      PolarisPrincipal principal, PolarisResolvedPathWrapper path) {
     PolarisEntity rawLeafEntity = path.getRawLeafEntity();
     if (rawLeafEntity == null || rawLeafEntity.getType() != PolarisEntityType.TABLE_LIKE) {
       return Map.of();
     }
-    return rawLeafEntity.getPropertiesAsMap();
+
+    Map<String, String> fallbackProperties = rawLeafEntity.getPropertiesAsMap();
+
+    String referenceCatalogName = extractReferenceCatalogName(path);
+    List<String> tablePathSegments = extractTablePathSegments(path);
+    LOGGER.debug(
+        "Resolving table properties for reference catalog={} and tablePathSegments={}",
+        referenceCatalogName,
+        tablePathSegments);
+    if (tableMetadataPropertiesLookup != null && tableMetadataPropertiesLookup.isResolvable()) {
+      if (referenceCatalogName != null && !tablePathSegments.isEmpty()) {
+        Optional<Map<String, String>> lookedUpProperties =
+            tableMetadataPropertiesLookup
+                .get()
+                .lookupTableProperties(principal, referenceCatalogName, tablePathSegments);
+        if (lookedUpProperties.isPresent()) {
+          return lookedUpProperties.get();
+        }
+      }
+    }
+
+    if (resolverFactory == null) {
+      return fallbackProperties;
+    }
+    if (referenceCatalogName == null || tablePathSegments.isEmpty()) {
+      return fallbackProperties;
+    }
+
+    try {
+      LOGGER.info(
+          "Attempting to resolve table properties for path={} using resolver with reference catalog={}",
+          path,
+          referenceCatalogName);
+      Resolver resolver = resolverFactory.createResolver(principal, referenceCatalogName);
+      resolver.addPath(
+          new ResolverPath(
+              ResolvedPathKey.of(tablePathSegments, PolarisEntityType.TABLE_LIKE), true));
+      ResolverStatus status = resolver.resolveAll();
+      if (status.getStatus() != ResolverStatus.StatusEnum.SUCCESS) {
+        return fallbackProperties;
+      }
+
+      List<ResolvedPolarisEntity> resolvedPath = resolver.getResolvedPath();
+      if (resolvedPath.isEmpty()) {
+        return fallbackProperties;
+      }
+
+      PolarisEntity resolvedLeaf = resolvedPath.get(resolvedPath.size() - 1).getEntity();
+      if (resolvedLeaf.getType() != PolarisEntityType.TABLE_LIKE) {
+        return fallbackProperties;
+      }
+      LOGGER.info(
+          "Successfully resolved table properties for path={} using resolver with reference catalog={}",
+          path,
+          referenceCatalogName);
+      Map<String, String> propertiesAsMap = resolvedLeaf.getPropertiesAsMap();
+      LOGGER.info(
+          "Resolved table properties for reference catalog={} and leaf={} : {}",
+          referenceCatalogName,
+          resolvedLeaf,
+          propertiesAsMap);
+      return propertiesAsMap;
+    } catch (RuntimeException e) {
+      LOGGER.debug(
+          "Falling back to raw table properties for path={} due to resolver failure", path, e);
+      return fallbackProperties;
+    }
+  }
+
+  private @Nullable String extractReferenceCatalogName(PolarisResolvedPathWrapper path) {
+    List<ResolvedPolarisEntity> resolvedFullPath = path.getResolvedFullPath();
+    if (resolvedFullPath == null || resolvedFullPath.isEmpty()) {
+      return null;
+    }
+
+    for (ResolvedPolarisEntity resolvedEntity : resolvedFullPath) {
+      PolarisEntity entity = resolvedEntity.getEntity();
+      if (entity.getType() == PolarisEntityType.CATALOG) {
+        return entity.getName();
+      }
+    }
+
+    return null;
+  }
+
+  private List<String> extractTablePathSegments(PolarisResolvedPathWrapper path) {
+    List<ResolvedPolarisEntity> resolvedFullPath = path.getResolvedFullPath();
+    if (resolvedFullPath == null || resolvedFullPath.isEmpty()) {
+      return List.of();
+    }
+
+    boolean foundCatalog = false;
+    List<String> segments = new ArrayList<>();
+    for (ResolvedPolarisEntity resolvedEntity : resolvedFullPath) {
+      PolarisEntity entity = resolvedEntity.getEntity();
+      if (!foundCatalog) {
+        if (entity.getType() == PolarisEntityType.CATALOG) {
+          foundCatalog = true;
+        }
+        continue;
+      }
+
+      if (entity.getType() == PolarisEntityType.NAMESPACE
+          || entity.getType() == PolarisEntityType.TABLE_LIKE) {
+        segments.add(entity.getName());
+      }
+    }
+
+    return segments;
   }
 
   private Map<String, String> extractNamespaceProperties(PolarisResolvedPathWrapper path) {
