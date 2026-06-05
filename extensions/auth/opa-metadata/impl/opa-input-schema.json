@@ -42,10 +42,21 @@
                 "type" : "string",
                 "required" : true
               },
+              "existing_properties" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "string"
+                }
+              },
+              "inbound_properties" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "string"
+                }
+              },
               "access_control_properties" : {
                 "type" : "object",
                 "id" : "urn:jsonschema:org:apache:polaris:extension:auth:opametadata:model:AccessControlProperties",
-                "required" : true,
                 "properties" : {
                   "owners" : {
                     "type" : "array",

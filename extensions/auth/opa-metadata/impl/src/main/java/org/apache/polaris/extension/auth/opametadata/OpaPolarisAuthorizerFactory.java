@@ -24,6 +24,7 @@ import io.smallrye.common.annotation.Identifier;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import java.io.IOException;
 import java.net.URI;
@@ -38,6 +39,7 @@ import org.apache.polaris.extension.auth.opametadata.token.BearerTokenProvider;
 import org.apache.polaris.extension.auth.opametadata.token.FileBearerTokenProvider;
 import org.apache.polaris.extension.auth.opametadata.token.StaticBearerTokenProvider;
 import org.apache.polaris.nosql.async.AsyncExec;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -52,16 +54,25 @@ class OpaPolarisAuthorizerFactory implements PolarisAuthorizerFactory {
   private final Clock clock;
   private final ObjectMapper objectMapper;
   private final AsyncExec asyncExec;
+  private final @Nullable Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder;
   private CloseableHttpClient httpClient;
   private BearerTokenProvider bearerTokenProvider;
 
   @Inject
   public OpaPolarisAuthorizerFactory(
-      OpaAuthorizationConfig opaConfig, Clock clock, AsyncExec asyncExec) {
+      OpaAuthorizationConfig opaConfig,
+      Clock clock,
+      AsyncExec asyncExec,
+      Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder) {
     this.opaConfig = opaConfig;
     this.clock = clock;
     this.asyncExec = asyncExec;
+    this.pendingTablePropertiesHolder = pendingTablePropertiesHolder;
     this.objectMapper = JsonMapper.builder().build();
+  }
+
+  OpaPolarisAuthorizerFactory(OpaAuthorizationConfig opaConfig, Clock clock, AsyncExec asyncExec) {
+    this(opaConfig, clock, asyncExec, null);
   }
 
   /**
@@ -96,7 +107,8 @@ class OpaPolarisAuthorizerFactory implements PolarisAuthorizerFactory {
                     new IllegalStateException(
                         "OPA policy URI must be configured via polaris.authorization.opametadata.policy-uri"));
 
-    return new OpaPolarisAuthorizer(policyUri, httpClient, objectMapper, bearerTokenProvider);
+    return new OpaPolarisAuthorizer(
+        policyUri, httpClient, objectMapper, bearerTokenProvider, pendingTablePropertiesHolder);
   }
 
   @PreDestroy

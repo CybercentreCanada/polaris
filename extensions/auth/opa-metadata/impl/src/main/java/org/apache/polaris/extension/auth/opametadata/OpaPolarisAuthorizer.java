@@ -21,11 +21,12 @@ package org.apache.polaris.extension.auth.opametadata;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.annotations.VisibleForTesting;
+import jakarta.enterprise.inject.Instance;
 import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.apache.hc.client5.http.classic.methods.HttpPost;
@@ -51,7 +52,6 @@ import org.apache.polaris.core.auth.PolarisSecurable;
 import org.apache.polaris.core.entity.PolarisBaseEntity;
 import org.apache.polaris.core.persistence.PolarisResolvedPathWrapper;
 import org.apache.polaris.core.persistence.ResolvedPolarisEntity;
-import org.apache.polaris.extension.auth.opametadata.model.ImmutableAccessControlProperties;
 import org.apache.polaris.extension.auth.opametadata.model.ImmutableActor;
 import org.apache.polaris.extension.auth.opametadata.model.ImmutableContext;
 import org.apache.polaris.extension.auth.opametadata.model.ImmutableOpaAuthorizationInput;
@@ -64,6 +64,7 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 /**
  * OPA-based implementation of {@link PolarisAuthorizer}.
@@ -81,8 +82,11 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
   private final BearerTokenProvider tokenProvider;
   private final CloseableHttpClient httpClient;
   private final ObjectMapper objectMapper;
+  private final Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder;
 
   private static final Logger LOGGER = LoggerFactory.getLogger(OpaPolarisAuthorizer.class);
+  private static final String REQUEST_ID_MDC_KEY = "requestId";
+
   /**
    * Public constructor that accepts a complete policy URI.
    *
@@ -98,12 +102,22 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
       @NonNull URI policyUri,
       @NonNull CloseableHttpClient httpClient,
       @NonNull ObjectMapper objectMapper,
-      @Nullable BearerTokenProvider tokenProvider) {
+      @Nullable BearerTokenProvider tokenProvider,
+      @Nullable Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder) {
 
     this.policyUri = policyUri;
     this.tokenProvider = tokenProvider;
     this.httpClient = httpClient;
     this.objectMapper = objectMapper;
+    this.pendingTablePropertiesHolder = pendingTablePropertiesHolder;
+  }
+
+  public OpaPolarisAuthorizer(
+      @NonNull URI policyUri,
+      @NonNull CloseableHttpClient httpClient,
+      @NonNull ObjectMapper objectMapper,
+      @Nullable BearerTokenProvider tokenProvider) {
+    this(policyUri, httpClient, objectMapper, tokenProvider, null);
   }
 
   /**
@@ -115,8 +129,11 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
   @Override
   public void resolveAuthorizationInputs(
       @NonNull AuthorizationState authzState, @NonNull AuthorizationRequest request) {
-     LOGGER.info("resolveAuthorizationInputs: Resolving authorization inputs for request: {}, authorization state: {}", request.formatForAuthorizationMessage(), authzState);
-        authzState.getResolutionManifest().resolveAll();
+    LOGGER.info(
+        "resolveAuthorizationInputs: Resolving authorization inputs for request: {}, authorization state: {}",
+        request.formatForAuthorizationMessage(),
+        authzState);
+    authzState.getResolutionManifest().resolveAll();
   }
 
   @Override
@@ -156,7 +173,8 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
       @NonNull PolarisAuthorizableOperation authzOp,
       @Nullable PolarisResolvedPathWrapper target,
       @Nullable PolarisResolvedPathWrapper secondary) {
-    LOGGER.info("authorizeOrThrow:152 Authorizing principal: {}, activatedEntities: {}, operation: {}, target: {}, secondary: {}",
+    LOGGER.info(
+        "authorizeOrThrow:152 Authorizing principal: {}, activatedEntities: {}, operation: {}, target: {}, secondary: {}",
         polarisPrincipal,
         activatedEntities,
         authzOp,
@@ -189,8 +207,9 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
       @NonNull PolarisAuthorizableOperation authzOp,
       @Nullable List<PolarisResolvedPathWrapper> targets,
       @Nullable List<PolarisResolvedPathWrapper> secondaries) {
-    
-    LOGGER.info("authorizeOrThrow:182 Authorizing principal: {}, activatedEntities: {}, operation: {}, targets: {}, secondaries: {}",
+
+    LOGGER.info(
+        "authorizeOrThrow:182 Authorizing principal: {}, activatedEntities: {}, operation: {}, targets: {}, secondaries: {}",
         polarisPrincipal,
         activatedEntities,
         authzOp,
@@ -201,8 +220,9 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
             buildOpaAuthorizationInput(
                 polarisPrincipal,
                 authzOp,
-                toResourceEntitiesFromResolvedPaths(targets),
-                toResourceEntitiesFromResolvedPaths(secondaries)));
+                toResourceEntitiesFromResolvedPaths(
+                    targets, authzOp == PolarisAuthorizableOperation.SET_TABLE_PROPERTIES),
+                toResourceEntitiesFromResolvedPaths(secondaries, false)));
     if (!allowed) {
       throw new ForbiddenException("OPA denied authorization");
     }
@@ -311,7 +331,11 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
   }
 
   private ImmutableContext buildContext() {
-    return ImmutableContext.builder().requestId(UUID.randomUUID().toString()).build();
+    String requestId = MDC.get(REQUEST_ID_MDC_KEY);
+    if (requestId == null || requestId.isBlank()) {
+      requestId = UUID.randomUUID().toString();
+    }
+    return ImmutableContext.builder().requestId(requestId).build();
   }
 
   private ImmutableResource buildResource(
@@ -340,7 +364,8 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
     return builder.build();
   }
 
-  private ResourceEntity buildResourceEntity(PolarisResolvedPathWrapper path) {
+  private ResourceEntity buildResourceEntity(
+      PolarisResolvedPathWrapper path, boolean includeInboundProperties) {
     // Currently, authorizeOrThrow still evaluate through resolved paths, including
     // root-scoped operations that may surface a resolved ROOT leaf. Preserve that legacy
     // behavior for compatibility until those callers migrate to the intent-based flow.
@@ -351,43 +376,45 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
     List<ResolvedPolarisEntity> resolvedParents = path.getResolvedParentPath();
     if (resolvedParents != null) {
       for (ResolvedPolarisEntity resolvedParent : resolvedParents) {
-        
-        ImmutableAccessControlProperties immutableAccessControlProperties = ImmutableAccessControlProperties.builder()
-        .dataWriters(Collections.emptyList())
-        .dataReaders(Collections.emptyList())
-        .owners(Collections.emptyList())
-        .dataAdministrators(Collections.emptyList())
-        .build(); // TODO: populate access control properties if needed in future
-        
-        LOGGER.info("resolving parents for entity: {}, resolved parent entity: {}", leaf, resolvedParent.getEntity());
+        LOGGER.info(
+            "resolving parents for entity: {}, resolved parent entity: {}",
+            leaf,
+            resolvedParent.getEntity());
 
         parents.add(
             ImmutableResourceEntity.builder()
                 .type(resolvedParent.getEntity().getType().name())
                 .name(resolvedParent.getEntity().getName())
-                .accessControlProperties(immutableAccessControlProperties)
                 .build());
       }
     }
 
-    ImmutableAccessControlProperties immutableAccessControlProperties = ImmutableAccessControlProperties.builder()
-        .dataWriters(Collections.emptyList())
-        .dataReaders(Collections.emptyList())
-        .owners(Collections.emptyList())
-        .dataAdministrators(Collections.emptyList())
-        .build();
+    ImmutableResourceEntity.Builder builder =
+        ImmutableResourceEntity.builder()
+            .type(leaf.entityType().name())
+            .name(leaf.name())
+            .parents(parents);
 
-    return ImmutableResourceEntity.builder()
-        .type(leaf.entityType().name())
-        .name(leaf.name())
-        .accessControlProperties(immutableAccessControlProperties)
-        .parents(parents)
-        .build();
+    if (includeInboundProperties) {
+      builder.existingProperties(
+          path.getRawLeafEntity() == null
+              ? Map.of()
+              : path.getRawLeafEntity().getPropertiesAsMap());
+      builder.inboundProperties(getInboundSetProperties());
+      LOGGER.info(
+          "Building ResourceEntity for path: {}, existingProperties: {}, inboundProperties: {}, rawLeafEntity: {}",
+          path,
+          builder.build().existingProperties(),
+          builder.build().inboundProperties(),
+          path.getRawLeafEntity());
+    }
+
+    return builder.build();
   }
 
   @NonNull
   private List<ResourceEntity> toResourceEntitiesFromResolvedPaths(
-      @Nullable List<PolarisResolvedPathWrapper> paths) {
+      @Nullable List<PolarisResolvedPathWrapper> paths, boolean includeInboundProperties) {
     if (paths == null || paths.isEmpty()) {
       return List.of();
     }
@@ -395,10 +422,17 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
     List<ResourceEntity> entities = new ArrayList<>();
     for (PolarisResolvedPathWrapper path : paths) {
       if (path != null && path.getResolvedLeafEntity() != null) {
-        entities.add(buildResourceEntity(path));
+        entities.add(buildResourceEntity(path, includeInboundProperties));
       }
     }
     return entities;
+  }
+
+  private Map<String, String> getInboundSetProperties() {
+    if (pendingTablePropertiesHolder == null || !pendingTablePropertiesHolder.isResolvable()) {
+      return Map.of();
+    }
+    return pendingTablePropertiesHolder.get().getInboundSetProperties();
   }
 
   @NonNull

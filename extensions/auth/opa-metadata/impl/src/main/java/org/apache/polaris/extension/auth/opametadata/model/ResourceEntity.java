@@ -24,7 +24,9 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import java.util.List;
+import java.util.Map;
 import org.apache.polaris.immutables.PolarisImmutable;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Represents a single resource entity in the authorization context.
@@ -42,11 +44,23 @@ public interface ResourceEntity {
   /** The name of the resource. */
   String name();
 
+  /** Existing resource properties read from Polaris metadata for the current target. */
+  @Nullable
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  Map<String, String> existingProperties();
+
+  /** Inbound table properties carried by UpdateTableRequest SetProperties updates. */
+  @Nullable
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  Map<String, String> inboundProperties();
+
   /**
    * Access control properties for this resource, including owners, data administrators, data
    * writers, and data readers. This is the enriched metadata that will be used for authorization
    * decisions.
    */
+  @Nullable
+  @JsonInclude(JsonInclude.Include.ALWAYS)
   AccessControlProperties accessControlProperties();
 
   /**
@@ -54,6 +68,6 @@ public interface ResourceEntity {
    *
    * <p>For example, a table might have parents: [catalog, namespace].
    */
-  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonInclude(JsonInclude.Include.ALWAYS)
   List<ResourceEntity> parents();
 }
