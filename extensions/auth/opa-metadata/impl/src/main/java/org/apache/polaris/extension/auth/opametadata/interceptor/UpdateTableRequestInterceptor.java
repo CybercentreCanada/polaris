@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.polaris.extension.auth.opametadata;
+package org.apache.polaris.extension.auth.opametadata.interceptor;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.inject.Instance;
@@ -52,9 +52,6 @@ class UpdateTableRequestInterceptor implements ReaderInterceptor {
   public Object aroundReadFrom(ReaderInterceptorContext context)
       throws IOException, WebApplicationException {
     Object requestBody = context.proceed();
-    LOGGER.info(
-        "Intercepting request to capture inbound table properties for OPA authorization of type {}",
-        requestBody == null ? "null" : requestBody.getClass().getSimpleName());
 
     if (!(requestBody instanceof UpdateTableRequest updateTableRequest)) {
       return requestBody;
@@ -62,8 +59,7 @@ class UpdateTableRequestInterceptor implements ReaderInterceptor {
     if (!pendingTablePropertiesHolder.isResolvable()) {
       return requestBody;
     }
-    LOGGER.info(
-        "Captured UpdateTableRequest for OPA authorization, extracting inbound table properties if present");
+
     pendingTablePropertiesHolder
         .get()
         .setInboundSetProperties(extractInboundSetProperties(updateTableRequest));
@@ -72,7 +68,7 @@ class UpdateTableRequestInterceptor implements ReaderInterceptor {
 
   private static Map<String, String> extractInboundSetProperties(UpdateTableRequest request) {
     if (request.updates() == null || request.updates().isEmpty()) {
-      LOGGER.info("No metadata updates found in UpdateTableRequest");
+      LOGGER.debug("No metadata updates found in UpdateTableRequest");
       return Map.of();
     }
 
@@ -83,10 +79,9 @@ class UpdateTableRequestInterceptor implements ReaderInterceptor {
       }
     }
     if (mergedUpdates.isEmpty()) {
-      LOGGER.info("No set properties found in UpdateTableRequest");
+      LOGGER.debug("No set properties found in UpdateTableRequest");
       return Map.of();
     }
-    LOGGER.info("Extracted inbound table properties from UpdateTableRequest: {}", mergedUpdates);
     return Map.copyOf(mergedUpdates);
   }
 }

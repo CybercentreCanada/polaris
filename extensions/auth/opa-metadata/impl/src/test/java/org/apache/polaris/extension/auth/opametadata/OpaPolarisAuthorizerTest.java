@@ -68,6 +68,7 @@ import org.apache.polaris.core.persistence.resolver.PolarisResolutionManifest;
 import org.apache.polaris.core.persistence.resolver.Resolver;
 import org.apache.polaris.core.persistence.resolver.ResolverFactory;
 import org.apache.polaris.core.persistence.resolver.ResolverStatus;
+import org.apache.polaris.extension.auth.opametadata.interceptor.PendingTablePropertiesHolder;
 import org.apache.polaris.extension.auth.opametadata.token.BearerTokenProvider;
 import org.apache.polaris.extension.auth.opametadata.token.StaticBearerTokenProvider;
 import org.junit.jupiter.api.Test;

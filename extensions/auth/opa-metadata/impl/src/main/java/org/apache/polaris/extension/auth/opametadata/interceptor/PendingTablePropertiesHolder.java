@@ -16,18 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.polaris.extension.auth.opametadata;
+package org.apache.polaris.extension.auth.opametadata.interceptor;
 
 import jakarta.enterprise.context.RequestScoped;
 import java.util.Map;
 
 /** Holds inbound table properties for the active HTTP request. */
 @RequestScoped
-class PendingTablePropertiesHolder {
+public class PendingTablePropertiesHolder {
 
   private Map<String, String> inboundSetProperties = Map.of();
 
-  void setInboundSetProperties(Map<String, String> inboundSetProperties) {
+  public void setInboundSetProperties(Map<String, String> inboundSetProperties) {
     if (inboundSetProperties == null || inboundSetProperties.isEmpty()) {
       this.inboundSetProperties = Map.of();
       return;
@@ -35,7 +35,7 @@ class PendingTablePropertiesHolder {
     this.inboundSetProperties = Map.copyOf(inboundSetProperties);
   }
 
-  Map<String, String> getInboundSetProperties() {
+  public Map<String, String> getInboundSetProperties() {
     return inboundSetProperties;
   }
 }
