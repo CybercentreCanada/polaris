@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.polaris.extension.auth.opametadata;
+package org.apache.polaris.extension.auth.opametadata.lookup;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

@@ -26,8 +26,10 @@ import jakarta.ws.rs.ext.Provider;
 import jakarta.ws.rs.ext.ReaderInterceptor;
 import jakarta.ws.rs.ext.ReaderInterceptorContext;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import org.apache.iceberg.MetadataUpdate;
 import org.apache.iceberg.rest.requests.UpdateTableRequest;
 import org.slf4j.Logger;
@@ -41,11 +43,14 @@ class UpdateTableRequestInterceptor implements ReaderInterceptor {
   private static final Logger LOGGER = LoggerFactory.getLogger(UpdateTableRequestInterceptor.class);
 
   private final Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder;
+  private final Instance<PendingTablePropertyRemovalsHolder> pendingTablePropertyRemovalsHolder;
 
   @Inject
   UpdateTableRequestInterceptor(
-      Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder) {
+      Instance<PendingTablePropertiesHolder> pendingTablePropertiesHolder,
+      Instance<PendingTablePropertyRemovalsHolder> pendingTablePropertyRemovalsHolder) {
     this.pendingTablePropertiesHolder = pendingTablePropertiesHolder;
+    this.pendingTablePropertyRemovalsHolder = pendingTablePropertyRemovalsHolder;
   }
 
   @Override
@@ -56,13 +61,21 @@ class UpdateTableRequestInterceptor implements ReaderInterceptor {
     if (!(requestBody instanceof UpdateTableRequest updateTableRequest)) {
       return requestBody;
     }
-    if (!pendingTablePropertiesHolder.isResolvable()) {
+    if (!pendingTablePropertiesHolder.isResolvable()
+        && !pendingTablePropertyRemovalsHolder.isResolvable()) {
       return requestBody;
     }
 
-    pendingTablePropertiesHolder
-        .get()
-        .setInboundSetProperties(extractInboundSetProperties(updateTableRequest));
+    if (pendingTablePropertiesHolder.isResolvable()) {
+      pendingTablePropertiesHolder
+          .get()
+          .setInboundSetProperties(extractInboundSetProperties(updateTableRequest));
+    }
+    if (pendingTablePropertyRemovalsHolder.isResolvable()) {
+      pendingTablePropertyRemovalsHolder
+          .get()
+          .setInboundRemovedPropertyKeys(extractInboundRemovedPropertyKeys(updateTableRequest));
+    }
     return requestBody;
   }
 
@@ -83,5 +96,23 @@ class UpdateTableRequestInterceptor implements ReaderInterceptor {
       return Map.of();
     }
     return Map.copyOf(mergedUpdates);
+  }
+
+  private static Set<String> extractInboundRemovedPropertyKeys(UpdateTableRequest request) {
+    if (request.updates() == null || request.updates().isEmpty()) {
+      return Set.of();
+    }
+
+    Set<String> removedKeys = new HashSet<>();
+    for (MetadataUpdate update : request.updates()) {
+      if (update instanceof MetadataUpdate.RemoveProperties removeProperties) {
+        removedKeys.addAll(removeProperties.removed());
+      }
+    }
+    if (removedKeys.isEmpty()) {
+      LOGGER.debug("No removed properties found in UpdateTableRequest");
+      return Set.of();
+    }
+    return Set.copyOf(removedKeys);
   }
 }

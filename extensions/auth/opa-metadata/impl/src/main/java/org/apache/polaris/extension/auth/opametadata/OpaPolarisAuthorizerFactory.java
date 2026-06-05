@@ -37,6 +37,7 @@ import org.apache.polaris.core.auth.PolarisAuthorizerFactory;
 import org.apache.polaris.core.config.RealmConfig;
 import org.apache.polaris.core.persistence.resolver.ResolverFactory;
 import org.apache.polaris.extension.auth.opametadata.interceptor.PendingTablePropertiesHolder;
+import org.apache.polaris.extension.auth.opametadata.lookup.TableMetadataPropertiesLookup;
 import org.apache.polaris.extension.auth.opametadata.token.BearerTokenProvider;
 import org.apache.polaris.extension.auth.opametadata.token.FileBearerTokenProvider;
 import org.apache.polaris.extension.auth.opametadata.token.StaticBearerTokenProvider;

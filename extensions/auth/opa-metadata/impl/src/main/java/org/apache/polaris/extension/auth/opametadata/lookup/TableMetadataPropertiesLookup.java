@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.polaris.extension.auth.opametadata;
+package org.apache.polaris.extension.auth.opametadata.lookup;
 
 import java.util.List;
 import java.util.Map;

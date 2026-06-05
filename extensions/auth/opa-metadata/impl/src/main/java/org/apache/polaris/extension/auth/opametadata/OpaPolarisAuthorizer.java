@@ -61,6 +61,7 @@ import org.apache.polaris.core.persistence.resolver.ResolverFactory;
 import org.apache.polaris.core.persistence.resolver.ResolverPath;
 import org.apache.polaris.core.persistence.resolver.ResolverStatus;
 import org.apache.polaris.extension.auth.opametadata.interceptor.PendingTablePropertiesHolder;
+import org.apache.polaris.extension.auth.opametadata.lookup.TableMetadataPropertiesLookup;
 import org.apache.polaris.extension.auth.opametadata.model.ImmutableActor;
 import org.apache.polaris.extension.auth.opametadata.model.ImmutableContext;
 import org.apache.polaris.extension.auth.opametadata.model.ImmutableOpaAuthorizationInput;
