@@ -78,7 +78,7 @@ public class CreateRequestOwnerReaderInterceptor implements ReaderInterceptor {
     }
 
     logExistingNamespaceProperties(path);
-    
+
     Optional<OwnerTrackingMetadata> maybeMetadata = userOwnershipResolver.resolve();
     if (maybeMetadata.isEmpty()) {
       LOGGER.debug(

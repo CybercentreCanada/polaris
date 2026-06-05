@@ -49,6 +49,16 @@ public interface ResourceEntity {
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
   Map<String, String> existingProperties();
 
+  /** Existing table properties when this resource points at a TABLE_LIKE entity. */
+  @Nullable
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  Map<String, String> tableProperties();
+
+  /** Existing namespace properties from the nearest namespace in the resolved path. */
+  @Nullable
+  @JsonInclude(JsonInclude.Include.NON_EMPTY)
+  Map<String, String> namespaceProperties();
+
   /** Inbound table properties carried by UpdateTableRequest SetProperties updates. */
   @Nullable
   @JsonInclude(JsonInclude.Include.NON_EMPTY)
@@ -60,7 +70,7 @@ public interface ResourceEntity {
    * decisions.
    */
   @Nullable
-  @JsonInclude(JsonInclude.Include.ALWAYS)
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   AccessControlProperties accessControlProperties();
 
   /**

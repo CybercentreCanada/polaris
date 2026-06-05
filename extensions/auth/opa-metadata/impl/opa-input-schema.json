@@ -48,6 +48,18 @@
                   "type" : "string"
                 }
               },
+              "table_properties" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "string"
+                }
+              },
+              "namespace_properties" : {
+                "type" : "object",
+                "additionalProperties" : {
+                  "type" : "string"
+                }
+              },
               "inbound_properties" : {
                 "type" : "object",
                 "additionalProperties" : {

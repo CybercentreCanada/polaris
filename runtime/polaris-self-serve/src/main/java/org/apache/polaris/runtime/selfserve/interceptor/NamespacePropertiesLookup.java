@@ -21,6 +21,7 @@ package org.apache.polaris.runtime.selfserve.interceptor;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
@@ -55,11 +56,8 @@ public class NamespacePropertiesLookup {
       return Optional.empty();
     }
 
-    String normalizedPath =
-        encodedNamespacePath
-            .replace(NAMESPACE_SEPARATOR_ENCODED, NAMESPACE_SEPARATOR)
-            .replace(NAMESPACE_SEPARATOR_ENCODED.toLowerCase(Locale.ROOT), NAMESPACE_SEPARATOR);
-    List<String> namespaceLevels = Arrays.asList(normalizedPath.split(NAMESPACE_SEPARATOR, -1));
+    String normalizedPath = normalizeNamespacePath(encodedNamespacePath);
+    List<String> namespaceLevels = toNamespaceLevels(normalizedPath);
 
     Resolver resolver = resolverFactory.createResolver(maybePrincipal.get(), catalogName);
     resolver.addPath(
@@ -91,5 +89,60 @@ public class NamespacePropertiesLookup {
     }
 
     return Optional.of(namespaceEntity.getPropertiesAsMap());
+  }
+
+  public Optional<Map<String, String>> lookupTableProperties(
+      String catalogName, String encodedNamespacePath, String tableName) {
+    Optional<PolarisPrincipal> maybePrincipal = userOwnershipResolver.resolvePolarisPrincipal();
+    if (maybePrincipal.isEmpty()) {
+      LOGGER.info("Table lookup skipped: no PolarisPrincipal available");
+      return Optional.empty();
+    }
+
+    String normalizedPath = normalizeNamespacePath(encodedNamespacePath);
+    List<String> namespaceLevels = toNamespaceLevels(normalizedPath);
+
+    List<String> tablePath = new ArrayList<>(namespaceLevels);
+    tablePath.add(tableName);
+    Resolver resolver = resolverFactory.createResolver(maybePrincipal.get(), catalogName);
+    resolver.addPath(
+        new ResolverPath(ResolvedPathKey.of(tablePath, PolarisEntityType.TABLE_LIKE), true));
+    ResolverStatus status = resolver.resolveAll();
+
+    if (status.getStatus() != ResolverStatus.StatusEnum.SUCCESS) {
+      LOGGER.info(
+          "Table lookup unresolved: catalog={} namespace={} table={} status={}",
+          catalogName,
+          normalizedPath,
+          tableName,
+          status.getStatus());
+      return Optional.empty();
+    }
+
+    ResolvedPolarisEntity leaf = resolver.getResolvedPath().getLast();
+    if (leaf.getEntity().getType() != PolarisEntityType.TABLE_LIKE) {
+      LOGGER.info(
+          "Table lookup returned non-table leaf type={} for catalog={} namespace={} table={}",
+          leaf.getEntity().getType(),
+          catalogName,
+          normalizedPath,
+          tableName);
+      return Optional.empty();
+    }
+
+    return Optional.of(leaf.getEntity().getPropertiesAsMap());
+  }
+
+  private static String normalizeNamespacePath(String encodedNamespacePath) {
+    return encodedNamespacePath
+        .replace(NAMESPACE_SEPARATOR_ENCODED, NAMESPACE_SEPARATOR)
+        .replace(NAMESPACE_SEPARATOR_ENCODED.toLowerCase(Locale.ROOT), NAMESPACE_SEPARATOR);
+  }
+
+  private static List<String> toNamespaceLevels(String normalizedPath) {
+    List<String> levels =
+        new ArrayList<>(Arrays.asList(normalizedPath.split(NAMESPACE_SEPARATOR, -1)));
+    levels.removeIf(String::isEmpty);
+    return levels;
   }
 }

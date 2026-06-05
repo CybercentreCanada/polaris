@@ -50,6 +50,8 @@ import org.apache.polaris.core.auth.PolarisAuthorizer;
 import org.apache.polaris.core.auth.PolarisPrincipal;
 import org.apache.polaris.core.auth.PolarisSecurable;
 import org.apache.polaris.core.entity.PolarisBaseEntity;
+import org.apache.polaris.core.entity.PolarisEntity;
+import org.apache.polaris.core.entity.PolarisEntityType;
 import org.apache.polaris.core.persistence.PolarisResolvedPathWrapper;
 import org.apache.polaris.core.persistence.ResolvedPolarisEntity;
 import org.apache.polaris.extension.auth.opametadata.model.ImmutableActor;
@@ -393,6 +395,8 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
         ImmutableResourceEntity.builder()
             .type(leaf.entityType().name())
             .name(leaf.name())
+            .tableProperties(extractTableProperties(path))
+            .namespaceProperties(extractNamespaceProperties(path))
             .parents(parents);
 
     if (includeInboundProperties) {
@@ -401,12 +405,6 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
               ? Map.of()
               : path.getRawLeafEntity().getPropertiesAsMap());
       builder.inboundProperties(getInboundSetProperties());
-      LOGGER.info(
-          "Building ResourceEntity for path: {}, existingProperties: {}, inboundProperties: {}, rawLeafEntity: {}",
-          path,
-          builder.build().existingProperties(),
-          builder.build().inboundProperties(),
-          path.getRawLeafEntity());
     }
 
     return builder.build();
@@ -433,6 +431,35 @@ class OpaPolarisAuthorizer implements PolarisAuthorizer {
       return Map.of();
     }
     return pendingTablePropertiesHolder.get().getInboundSetProperties();
+  }
+
+  private Map<String, String> extractTableProperties(PolarisResolvedPathWrapper path) {
+    PolarisEntity rawLeafEntity = path.getRawLeafEntity();
+    if (rawLeafEntity == null || rawLeafEntity.getType() != PolarisEntityType.TABLE_LIKE) {
+      return Map.of();
+    }
+    return rawLeafEntity.getPropertiesAsMap();
+  }
+
+  private Map<String, String> extractNamespaceProperties(PolarisResolvedPathWrapper path) {
+    PolarisEntity rawLeafEntity = path.getRawLeafEntity();
+    if (rawLeafEntity != null && rawLeafEntity.getType() == PolarisEntityType.NAMESPACE) {
+      return rawLeafEntity.getPropertiesAsMap();
+    }
+
+    List<ResolvedPolarisEntity> parentPath = path.getResolvedParentPath();
+    if (parentPath == null || parentPath.isEmpty()) {
+      return Map.of();
+    }
+
+    for (int i = parentPath.size() - 1; i >= 0; i--) {
+      PolarisEntity parentEntity = parentPath.get(i).getEntity();
+      if (parentEntity.getType() == PolarisEntityType.NAMESPACE) {
+        return parentEntity.getPropertiesAsMap();
+      }
+    }
+
+    return Map.of();
   }
 
   @NonNull
